@@ -1,0 +1,24 @@
+# Chaves e segredos - NUNCA subir para o GitHub
+.env
+*.key
+*secret*
+google_credentials.json
+config.json
+
+# Arquivos do Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Dados sensíveis de clientes
+dados_clientes/
+*.xlsx
+*.csv
+
+# Logs
+*.log
