@@ -123,7 +123,7 @@ class GeminiProvedor(IAProvedor):
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {
                         "temperature": self.temperatura,
-                        "maxOutputTokens": self.max_tokens
+                        "maxOutputTokens": self.max_tokens,
                         "responseMimeType": "application/json"
                     }
                 },
