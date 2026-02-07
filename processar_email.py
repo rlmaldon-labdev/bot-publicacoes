@@ -21,7 +21,7 @@ class EmailProcessor:
         self.usuario = config['usuario']
         self.senha = config['senha']
         self.label = config.get('label', '')
-        self.marcar_como_lido = config.get('marcar_como_lido_apos_processar', True)
+        self.marcar_como_lido = config.get('marcar_como_lido_apos_processar', False)
         
         self.mail = None
         self._conectar()

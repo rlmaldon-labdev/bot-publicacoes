@@ -124,6 +124,7 @@ class GeminiProvedor(IAProvedor):
                     "generationConfig": {
                         "temperature": self.temperatura,
                         "maxOutputTokens": self.max_tokens
+                        "responseMimeType": "application/json"
                     }
                 },
                 timeout=60
