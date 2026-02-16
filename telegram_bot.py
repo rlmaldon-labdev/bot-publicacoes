@@ -95,22 +95,24 @@ class TelegramNotifier:
     def enviar_resumo_diario(self, sucesso, falhas, ignorados=0):
         """Envia resumo do processamento"""
         
-        total = sucesso + falhas + ignorados
+        total = sucesso + falhas
+        cards_criados = sucesso - ignorados
         hora = datetime.now().strftime("%H:%M")
         data = datetime.now().strftime("%d/%m/%Y")
         
         if total == 0:
             mensagem = f"""📊 <b>RESUMO - {data} {hora}</b>
 
-📭 Nenhuma publicação nova encontrada."""
+🔭 Nenhuma publicação nova encontrada."""
         else:
             taxa = (sucesso / total * 100) if total > 0 else 0
             
-            ignorados_texto = f"\n⏭️ <b>Ignorados (lista especial):</b> {ignorados}" if ignorados > 0 else ""
+            ignorados_texto = f"\n   ⏭️ Ignorados (lista especial): {ignorados}" if ignorados > 0 else ""
             mensagem = f"""📊 <b>RESUMO - {data} {hora}</b>
 
-📬 <b>Total processado:</b> {total} publicação(ões)
-✅ <b>Cards criados:</b> {sucesso}{ignorados_texto}
+📬 <b>Total de publicações:</b> {total}
+✅ <b>Processados com sucesso:</b> {sucesso}
+   📋 Cards criados: {cards_criados}{ignorados_texto}
 ❌ <b>Falhas:</b> {falhas}
 📈 <b>Taxa de sucesso:</b> {taxa:.0f}%"""
         

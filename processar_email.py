@@ -7,6 +7,7 @@ Versão Opus - Corrigida e otimizada
 import imaplib
 import email
 from email.header import decode_header
+from email.utils import parsedate_to_datetime
 from datetime import datetime, timedelta
 import re
 import html as html_module
@@ -97,15 +98,18 @@ class EmailProcessor:
             print(f"   📬 {len(email_ids)} email(s) não lido(s) encontrado(s)")
             
             # Processa cada email
-            emails_processados = []
+            emails_agrupados = []
             
-            for email_id in email_ids:
+            for ordem_email, email_id in enumerate(email_ids):
                 try:
                     email_data = self._processar_email(email_id)
                     if email_data:
+                        timestamp_email = self._parse_email_date(email_data.get('data'))
+
                         # Separa múltiplas publicações do email
                         publicacoes = self.separar_publicacoes(email_data['corpo'])
-                        
+
+                        publicacoes_do_email = []
                         if publicacoes:
                             for pub in publicacoes:
                                 # Cria uma cópia do email_data para cada publicação
@@ -113,22 +117,56 @@ class EmailProcessor:
                                 pub_data['corpo'] = pub['texto']
                                 pub_data['numero_publicacao'] = pub['numero']
                                 pub_data['total_publicacoes'] = len(publicacoes)
-                                emails_processados.append(pub_data)
+                                publicacoes_do_email.append(pub_data)
                         else:
                             # Fallback: usa o email inteiro como uma publicação
                             email_data['numero_publicacao'] = 1
                             email_data['total_publicacoes'] = 1
-                            emails_processados.append(email_data)
-                            
+                            publicacoes_do_email.append(email_data)
+
+                        if publicacoes_do_email:
+                            emails_agrupados.append({
+                                'ordem_original': ordem_email,
+                                'timestamp_email': timestamp_email,
+                                'publicacoes': publicacoes_do_email
+                            })
+                             
                 except Exception as e:
                     print(f"⚠️ Erro ao processar email {email_id}: {e}")
                     continue
-            
+
+            # Ordena por data do email (mais antigo primeiro), preservando estabilidade.
+            # Se não conseguir parsear a data, mantém a ordem original daquele email.
+            emails_agrupados.sort(
+                key=lambda item: (
+                    item['timestamp_email'] is None,
+                    item['timestamp_email'] if item['timestamp_email'] is not None else 0,
+                    item['ordem_original']
+                )
+            )
+
+            emails_processados = []
+            for grupo in emails_agrupados:
+                emails_processados.extend(grupo['publicacoes'])
+
             return emails_processados
-            
+             
         except Exception as e:
             print(f"❌ Erro ao buscar emails: {e}")
             return []
+
+    def _parse_email_date(self, date_header):
+        """Converte Date do email em timestamp para ordenação."""
+        if not date_header:
+            return None
+
+        try:
+            dt = parsedate_to_datetime(date_header)
+            if dt is None:
+                return None
+            return dt.timestamp()
+        except Exception:
+            return None
     
     def _processar_email(self, email_id):
         """Processa um email individual"""

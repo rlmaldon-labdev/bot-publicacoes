@@ -162,7 +162,7 @@ def testar_gemini(config):
         import requests
         
         api_key = config.get('api_key', '')
-        modelo = config.get('modelo', 'gemini-2.5-flash')
+        modelo = config.get('modelo', 'gemini-3-flash-preview')
         
         if not api_key:
             print(f"   {vermelho('❌ API Key do Gemini não configurada')}")
@@ -198,7 +198,7 @@ def testar_gemini(config):
             return False
         elif response.status_code == 404:
             print(f"   {vermelho('❌ Modelo não encontrado: ' + modelo)}")
-            print(f"   {amarelo('ℹ️  Modelos disponíveis: gemini-2.5-flash, gemini-1.5-flash, gemini-1.5-pro')}")
+            print(f"   {amarelo('ℹ️  Modelos disponíveis: gemini-3-flash-preview, gemini-2.5-flash, gemini-1.5-flash, gemini-1.5-pro')}")
             return False
         else:
             print(f"   {vermelho('❌ Erro: ' + str(response.status_code) + ' - ' + response.text[:100])}")

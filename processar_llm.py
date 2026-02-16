@@ -80,7 +80,7 @@ class GeminiProvedor(IAProvedor):
     
     def __init__(self, config):
         self.api_key = config.get('api_key', '')
-        self.modelo = config.get('modelo', 'gemini-2.5-flash')
+        self.modelo = config.get('modelo', 'gemini-3-flash-preview')
         self.temperatura = config.get('temperatura', 0.3)
         self.max_tokens = config.get('max_tokens', 2000)
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"

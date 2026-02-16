@@ -81,7 +81,7 @@ CONFIGURAÇÃO - config.json
     
     "gemini": {
       "api_key": "SUA_API_KEY_GEMINI",
-      "modelo": "gemini-2.5-flash"         ← Modelo gratuito
+      "modelo": "gemini-3-flash-preview"         ← Modelo gratuito
     }
   },
   
@@ -108,6 +108,7 @@ Para usar GEMINI (nuvem, qualquer PC):
   3. Preencha a api_key em "gemini"
 
 Modelos Gemini disponíveis:
+  - gemini-3-flash-preview  (recomendado, rápido)
   - gemini-2.5-flash  (recomendado, rápido, gratuito)
   - gemini-1.5-flash  (alternativa)
   - gemini-1.5-pro    (mais poderoso, pode ter limites)

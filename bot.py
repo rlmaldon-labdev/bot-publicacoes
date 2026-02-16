@@ -224,13 +224,14 @@ class BotPublicacoes:
         print(f"📊 RESUMO DO PROCESSAMENTO")
         print(f"{'='*60}")
         print(f"📬 Total de publicações: {len(publicacoes)}")
-        print(f"✅ Cards criados: {cards_criados}")
-        print(f"⏭️ Ignorados (lista especial): {self.ignorados_lista_especial}")
+        print(f"✅ Processados com sucesso: {sucesso}")
+        print(f"   ├─ 📋 Cards criados: {cards_criados}")
+        print(f"   └─ ⏭️ Ignorados (lista especial): {self.ignorados_lista_especial}")
         print(f"❌ Falhas: {falhas}")
         print(f"{'='*60}\n")
         
         # Envia resumo no Telegram
-        self.telegram.enviar_resumo_diario(cards_criados, falhas, self.ignorados_lista_especial)
+        self.telegram.enviar_resumo_diario(sucesso, falhas, self.ignorados_lista_especial)
     
     def executar_continuo(self):
         """Executa continuamente"""
