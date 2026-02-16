@@ -104,7 +104,8 @@ class EmailProcessor:
                 try:
                     email_data = self._processar_email(email_id)
                     if email_data:
-                        timestamp_email = self._parse_email_date(email_data.get('data'))
+                        data_email = self._parse_email_date(email_data.get('data'))
+                        sequencia_email = self._parse_email_sequence(email_id)
 
                         # Separa múltiplas publicações do email
                         publicacoes = self.separar_publicacoes(email_data['corpo'])
@@ -125,9 +126,14 @@ class EmailProcessor:
                             publicacoes_do_email.append(email_data)
 
                         if publicacoes_do_email:
+                            # Garante ordem interna estável (1, 2, 3...) dentro do mesmo email
+                            publicacoes_do_email.sort(
+                                key=lambda p: p.get('numero_publicacao', 0)
+                            )
                             emails_agrupados.append({
                                 'ordem_original': ordem_email,
-                                'timestamp_email': timestamp_email,
+                                'data_email': data_email,
+                                'sequencia_email': sequencia_email,
                                 'publicacoes': publicacoes_do_email
                             })
                              
@@ -135,12 +141,15 @@ class EmailProcessor:
                     print(f"⚠️ Erro ao processar email {email_id}: {e}")
                     continue
 
-            # Ordena por data do email (mais antigo primeiro), preservando estabilidade.
-            # Se não conseguir parsear a data, mantém a ordem original daquele email.
+            # Ordena por data do email (mais antigo primeiro).
+            # Em empate de data, usa sequência IMAP para manter o agrupamento por email.
+            # Se não conseguir parsear, mantém ordem original como fallback.
             emails_agrupados.sort(
                 key=lambda item: (
-                    item['timestamp_email'] is None,
-                    item['timestamp_email'] if item['timestamp_email'] is not None else 0,
+                    item['data_email'] is None,
+                    item['data_email'].toordinal() if item['data_email'] is not None else 0,
+                    item['sequencia_email'] is None,
+                    item['sequencia_email'] if item['sequencia_email'] is not None else 0,
                     item['ordem_original']
                 )
             )
@@ -156,7 +165,7 @@ class EmailProcessor:
             return []
 
     def _parse_email_date(self, date_header):
-        """Converte Date do email em timestamp para ordenação."""
+        """Converte Date do email para data (sem horário), usada na ordenação."""
         if not date_header:
             return None
 
@@ -164,7 +173,16 @@ class EmailProcessor:
             dt = parsedate_to_datetime(date_header)
             if dt is None:
                 return None
-            return dt.timestamp()
+            return dt.date()
+        except Exception:
+            return None
+
+    def _parse_email_sequence(self, email_id):
+        """Converte ID IMAP para inteiro, usado para desempate estável."""
+        try:
+            if isinstance(email_id, bytes):
+                email_id = email_id.decode()
+            return int(str(email_id))
         except Exception:
             return None
     
