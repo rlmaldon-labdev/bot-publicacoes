@@ -1,9 +1,10 @@
-"""
+﻿"""
 Módulo para processamento com IA (Ollama local ou Gemini API)
 Extrai informações estruturadas de publicações jurídicas
 Versão 3.0 - Suporte multi-provedor
 """
 
+import ast
 import requests
 import json
 import re
@@ -220,11 +221,23 @@ class LLMProcessor:
                 dados = self._extrair_json(resposta)
                 
                 if dados:
-                    dados['data_publicacao'] = data_publicacao.strftime("%d/%m/%Y")
-                    dados['prazo_calculado'] = self._calcular_prazo(dados, data_publicacao)
-                    dados['processado_em'] = datetime.now().isoformat()
-                    dados['provedor_ia'] = self.provedor_nome
-                    return dados
+                    return self._finalizar_dados_extraidos(dados, data_publicacao)
+
+                print("AVISO | JSON invalido na primeira resposta, tentando reparo automatico...")
+                resposta_reparo = self.provedor.gerar_resposta(self._montar_prompt_reparo_json(resposta))
+                if resposta_reparo:
+                    dados = self._extrair_json(resposta_reparo)
+                    if dados:
+                        return self._finalizar_dados_extraidos(dados, data_publicacao)
+
+            print("AVISO | Retentando a geracao com prompt mais curto...")
+            resposta_retentativa = self.provedor.gerar_resposta(
+                self._montar_prompt_retentativa(texto_limitado, data_publicacao)
+            )
+            if resposta_retentativa:
+                dados = self._extrair_json(resposta_retentativa)
+                if dados:
+                    return self._finalizar_dados_extraidos(dados, data_publicacao)
             
             print("⚠️ IA não retornou JSON válido, tentando extração básica...")
             return self._extrair_dados_basico(texto_publicacao, data_publicacao)
@@ -232,6 +245,51 @@ class LLMProcessor:
         except Exception as e:
             print(f"❌ Erro ao processar: {e}")
             return self._extrair_dados_basico(texto_publicacao, data_publicacao)
+
+    def _finalizar_dados_extraidos(self, dados, data_publicacao):
+        dados['data_publicacao'] = data_publicacao.strftime("%d/%m/%Y")
+        dados['prazo_calculado'] = self._calcular_prazo(dados, data_publicacao)
+        dados['processado_em'] = datetime.now().isoformat()
+        dados['provedor_ia'] = self.provedor_nome
+        return dados
+
+    def _montar_prompt_retentativa(self, texto, data_publicacao):
+        return self._montar_prompt(texto, data_publicacao) + """
+
+RETENTATIVA:
+- Responda com JSON minimo e estritamente valido.
+- Use observacoes com no maximo 1 frase curta.
+- Nunca quebre linhas dentro de strings.
+- Nao use markdown nem comentarios."""
+
+    def _montar_prompt_reparo_json(self, resposta_invalida):
+        resposta_limitada = resposta_invalida[:4000]
+        return f"""Corrija o conteudo abaixo para um JSON valido.
+
+Retorne somente um objeto JSON valido, sem markdown e sem explicacoes.
+Se algum campo estiver ausente, use null ou um valor padrao simples.
+
+Campos esperados:
+{{
+  "numero_processo": null,
+  "cliente": null,
+  "tipo_ato": null,
+  "tribunal": null,
+  "vara": null,
+  "prazo_mencionado": null,
+  "prazo_implicito": true,
+  "prazo_dias": 5,
+  "prazo_tipo": "uteis",
+  "resumo_topicos": ["Topico 1"],
+  "urgente": false,
+  "observacoes": "Observacao curta em uma linha",
+  "confianca": 0.5
+}}
+
+Conteudo a corrigir:
+{resposta_limitada}
+
+JSON:"""
     
     def _montar_prompt(self, texto, data_publicacao):
         """Monta prompt para extração de dados jurídicos"""
@@ -251,7 +309,7 @@ INSTRUÇÕES:
 5. Identifique a vara/juízo
 6. IMPORTANTE: Extraia o prazo em DIAS se mencionado (ex: "prazo de 15 dias", "5 dias úteis")
 7. Se não houver prazo expresso, marque "prazo_implicito": true e "prazo_dias": 5
-8. Crie um resumo em tópicos curtos do que foi determinado
+8. Crie no maximo 3 topicos curtos do que foi determinado
 9. Identifique se há urgência
 
 ATENÇÃO AO PRAZO:
@@ -271,28 +329,118 @@ FORMATO DE SAÍDA (APENAS JSON, sem explicações):
   "prazo_implicito": false,
   "prazo_dias": 15,
   "prazo_tipo": "úteis",
-  "resumo_topicos": ["Tópico 1", "Tópico 2"],
+  "resumo_topicos": ["Topico 1", "Topico 2"],
   "urgente": false,
-  "observacoes": "Observações importantes",
+  "observacoes": "Observacao curta em uma linha",
   "confianca": 0.85
 }}
 
-IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem explicações.
+IMPORTANTE: Retorne APENAS o JSON, sem markdown, sem explicacoes, sem texto fora do objeto e sem quebrar linhas dentro dos valores.
 
 JSON:"""
     
+    def _extrair_primeiro_objeto_json(self, texto):
+        """Extrai o primeiro objeto JSON balanceado da resposta."""
+        inicio = texto.find('{')
+        if inicio == -1:
+            return texto
+        profundidade = 0
+        em_string = False
+        escape = False
+        for indice in range(inicio, len(texto)):
+            caractere = texto[indice]
+            if em_string:
+                if escape:
+                    escape = False
+                elif caractere == '\\':
+                    escape = True
+                elif caractere == '"':
+                    em_string = False
+                continue
+            if caractere == '"':
+                em_string = True
+            elif caractere == '{':
+                profundidade += 1
+            elif caractere == '}':
+                profundidade -= 1
+                if profundidade == 0:
+                    return texto[inicio:indice + 1]
+        return texto[inicio:]
+    def _normalizar_json_bruto(self, texto):
+        """Aplica pequenos reparos em JSON malformado pelo modelo."""
+        resultado = []
+        em_string = False
+        escape = False
+        for caractere in texto:
+            if em_string:
+                if escape:
+                    resultado.append(caractere)
+                    escape = False
+                    continue
+                if caractere == '\\':
+                    resultado.append(caractere)
+                    escape = True
+                    continue
+                if caractere == '"':
+                    resultado.append(caractere)
+                    em_string = False
+                    continue
+                if caractere == '\n':
+                    resultado.append('\\n')
+                    continue
+                if caractere == '\r':
+                    continue
+                if caractere == '\t':
+                    resultado.append('\\t')
+                    continue
+                resultado.append(caractere)
+                continue
+            if caractere == '"':
+                em_string = True
+            resultado.append(caractere)
+        texto_normalizado = ''.join(resultado)
+        texto_normalizado = re.sub(r',(\s*[}\]])', r'\1', texto_normalizado)
+        return texto_normalizado.strip()
+    def _parse_json_tolerante(self, texto):
+        """Tenta decodificar JSON com pequenas tolerancias."""
+        candidatos = []
+        bloco = self._extrair_primeiro_objeto_json(texto)
+        if bloco:
+            candidatos.append(bloco)
+        if texto not in candidatos:
+            candidatos.append(texto)
+        for candidato in candidatos:
+            bruto = candidato.strip()
+            if not bruto:
+                continue
+            normalizado = self._normalizar_json_bruto(bruto)
+            for tentativa in (bruto, normalizado):
+                try:
+                    return json.loads(tentativa)
+                except Exception:
+                    pass
+            try:
+                convertido = normalizado
+                convertido = re.sub(r'\btrue\b', 'True', convertido, flags=re.IGNORECASE)
+                convertido = re.sub(r'\bfalse\b', 'False', convertido, flags=re.IGNORECASE)
+                convertido = re.sub(r'\bnull\b', 'None', convertido, flags=re.IGNORECASE)
+                dados = ast.literal_eval(convertido)
+                if isinstance(dados, dict):
+                    return dados
+            except Exception:
+                pass
+        return None
     def _extrair_json(self, texto):
         """Extrai JSON da resposta da IA"""
         try:
             texto = texto.replace('```json', '').replace('```', '').strip()
-            match = re.search(r'\{.*\}', texto, re.DOTALL)
-            if match:
-                return json.loads(match.group(0))
-            return json.loads(texto)
+            dados = self._parse_json_tolerante(texto)
+            if dados is not None:
+                return dados
+            raise ValueError('JSON vazio ou malformado')
         except Exception as e:
-            print(f"⚠️ Erro ao extrair JSON: {e}")
+            print(f"AVISO | Erro ao extrair JSON: {e}")
             return None
-    
     def _extrair_dados_basico(self, texto, data_publicacao):
         """Extração básica via regex (fallback)"""
         dados = {
@@ -319,10 +467,9 @@ JSON:"""
         if cnj_match:
             dados['numero_processo'] = cnj_match.group(1)
         
-        # Extrai POLO ATIVO
-        polo_match = re.search(r'POLO\s+ATIVO\s*:\s*([^\n]+)', texto, re.IGNORECASE)
-        if polo_match:
-            dados['cliente'] = polo_match.group(1).strip()
+        cliente = self._extrair_cliente_basico(texto)
+        if cliente:
+            dados['cliente'] = cliente
         
         # Identifica tipo de ato
         tipos_ato = [
@@ -345,6 +492,25 @@ JSON:"""
         
         dados['prazo_calculado'] = self._calcular_prazo(dados, data_publicacao)
         return dados
+
+    def _extrair_cliente_basico(self, texto):
+        padroes = [
+            r'POLO\s+ATIVO\s*:\s*(.+?)(?=\s+POLO\s+PASSIVO\s*:|\s+ADVOGADO\s*\(|\s+REQUERIDO\s*:|\s+EXECUTADO\s*:|\s+R[EÉ]U\s*:|[\r\n])',
+            r'AUTOR[A]?\s*:\s*(.+?)(?=\s+R[EÉ]U\s*:|\s+ADVOGADO\s*\(|[\r\n])',
+            r'REQUERENTE\s*:\s*(.+?)(?=\s+REQUERIDO\s*:|\s+ADVOGADO\s*\(|[\r\n])',
+            r'EXEQUENTE\s*:\s*(.+?)(?=\s+EXECUTADO\s*:|\s+ADVOGADO\s*\(|[\r\n])',
+        ]
+
+        for padrao in padroes:
+            match = re.search(padrao, texto, re.IGNORECASE | re.DOTALL)
+            if not match:
+                continue
+
+            cliente = re.sub(r'\s+', ' ', match.group(1)).strip(' :-;,.')
+            if cliente:
+                return cliente
+
+        return None
     
     def _calcular_prazo(self, dados, data_publicacao):
         """Calcula data do prazo a partir da data de publicação"""
