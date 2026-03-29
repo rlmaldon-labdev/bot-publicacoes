@@ -1,0 +1,44 @@
+{
+  "email": {
+    "servidor": "imap.gmail.com",
+    "porta": 993,
+    "usuario": "seu-email@gmail.com",
+    "senha": "sua-senha-ou-app-password",
+    "label": "Publicacoes_OABMG",
+    "marcar_como_lido_apos_processar": false
+  },
+  "ia": {
+    "provedor": "gemini",
+    "ollama": {
+      "url": "http://localhost:11434",
+      "modelo": "llama3.1:8b-instruct-q4_K_M",
+      "temperatura": 0.3,
+      "max_tokens": 2000
+    },
+    "gemini": {
+      "api_key": "SUA_GEMINI_API_KEY",
+      "modelo": "gemini-3-flash-preview",
+      "temperatura": 0.3,
+      "max_tokens": 2000
+    }
+  },
+  "lista_especial": {
+    "arquivo": "lista_especial.txt",
+    "acao": "ignorar"
+  },
+  "jaloma": {
+    "supabase_url": "https://seu-projeto.supabase.co",
+    "supabase_key": "SUA_SUPABASE_SERVICE_ROLE_KEY",
+    "responsavel_padrao": "Raphael",
+    "lista_manual_entrada": "Entrada Bot",
+    "mostrar_na_semana": false,
+    "modulo": "prazos",
+    "timeout_segundos": 20
+  },
+  "processamento": {
+    "intervalo_minutos": 15,
+    "dias_verificar": 7,
+    "debug": true,
+    "log_file": "bot_jaloma.log"
+  }
+}

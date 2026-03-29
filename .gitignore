@@ -4,6 +4,7 @@
 *secret*
 google_credentials.json
 config.json
+config_jaloma.json
 
 # Arquivos do Python
 __pycache__/
