@@ -31,7 +31,7 @@ class JalomaManager:
         self.responsavel_padrao = texto_limpo(config.get("responsavel_padrao")) or "Raphael"
         self.lista_manual_entrada = texto_limpo(config.get("lista_manual_entrada")) or "Entrada Bot"
         self.modulo = texto_limpo(config.get("modulo")) or "prazos"
-        self.mostrar_na_semana = bool(config.get("mostrar_na_semana", False))
+        self.mostrar_na_semana = True
         self.timeout = int(config.get("timeout_segundos", 20))
 
         if not self.supabase_url or not self.supabase_key:
